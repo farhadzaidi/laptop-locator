@@ -2,77 +2,72 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException
 
-# Initialize the WebDriver (e.g., for Chrome)
+# Initialize the WebDriver
 driver = webdriver.Chrome()
 
-# Open the webpage
-driver.get("https://www.bestbuy.com/site/laptop-computers/all-laptops/pcmcat138500050001.c?id=pcmcat138500050001")
+# driver pulls catalog of laptops
+o_url = "https://www.bestbuy.com/site/searchpage.jsp?_dyncharset=UTF-8&browsedCategory=pcmcat138500050001&id=pcat17071&iht=n&ks=960&list=y&qp=condition_facet%3DCondition~New&sc=Global&st=categoryid%24pcmcat138500050001&type=page&usc=All%20Categories"
+driver.get(o_url)
 
-# Wait for the pagination list to load
-pagination = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "ol.paging-list")))
+# waits unti it sees css element
+WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "ol.sku-item-list li.sku-item")))
 
-# Find the last page number
-#last_page_number = int(driver.find_element(By.CSS_SELECTOR, "ol.paging-list li.page-item:last-child").text)
-last_page_number = 1
-# Iterate through each page
-for page_number in range(1, last_page_number + 1):
-    # Construct the URL for the current page
-    if page_number > 1:
-        url = f"https://www.bestbuy.com/site/searchpage.jsp?_dyncharset=UTF-8&browsedCategory=pcmcat138500050001&cp={page_number}&id=pcat17071&iht=n&ks=960&list=y&sc=Global&st=categoryid%24pcmcat138500050001&type=page&usc=All%20Categories"
-        driver.get(url)
-    print("Processing page", page_number)
+# finds final page
+last_page = driver.find_element(By.CSS_SELECTOR,
+                                "div > div > div > div.component-sku-list > div > div.footer.top-border.wrapper > div.right-side > div > div.footer-pagination > ol > li:nth-child(5) > a")
+last_page = int(last_page.text.strip())
 
-    # Open the page
+for page in range(1, last_page):
+    if page > 1:
+        o_url = f"https://www.bestbuy.com/site/searchpage.jsp?_dyncharset=UTF-8&browsedCategory=pcmcat138500050001&cp={page}&id=pcat17071&iht=n&ks=960&list=y&qp=condition_facet%3DCondition~New&sc=Global&st=categoryid%24pcmcat138500050001&type=page&usc=All%20Categories"
+        driver.get(o_url)
 
+    print("1")
+    title_elements = driver.find_elements(By.CSS_SELECTOR,
+                                          " ol.sku-item-list > li.sku-item > div.shop-sku-list-item > div.list-item.sv > div.product-header > h4.sku-title > a")
+    for title_element in title_elements:
+        title_href = title_element.get_attribute("href")
+        print(title_href, "123")
+        print("2")
+        # Finds item using css
+        #products = driver.find_elements(By.CSS_SELECTOR, "ol.sku-item-list li.sku-item")
 
-    # Wait for the product list to load
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "ol.sku-item-list")))
+        #    for product in products:
 
+        # will go to the page pulled from href
+        driver.get(title_href)
 
-    # Find all products on the page
-    products = driver.find_elements(By.CSS_SELECTOR, "ol.sku-item-list li.sku-item")
+        # waits unti it sees css element
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located(
+            (By.CSS_SELECTOR, "div > div > div > div.row.p-none.m-none > div.col-xs-7.col-lg-8")))
+        print("2")
 
-    # Process each product
-    for product in products:
-        #go to product page
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.column-middle")))
+        # waits for button to be clickable then clicks it
+        spec_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, "div > div > div > div > div:nth-child(2) > button.show-full-specs-btn")))
+        spec_button.click()
 
-        title_element = product.find_element(By.CSS_SELECTOR, "div.column-middle h4.sku-title > a")
-        title_element.click()
+        # waits for spec menu to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div.overflow-scroll-wrapper > ul.zebra-stripe-list")))
 
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.col-xs-7.col-lg-8")))
+        # pulls data from webpage
+        specs_row = driver.find_elements(By.CSS_SELECTOR, "div.overflow-scroll-wrapper > ul.zebra-stripe-list")
+        print(len(specs_row))
 
-        check_spec = driver.find_element(By.CSS_SELECTOR, "button.c-button.c-button-outline.c-button-md.show-full-specs-btn.col-xs-6")
-        check_spec.click()
+        # loop through each row of specs
+        for row in specs_row:
+            spec_title = row.find_element(By.CSS_SELECTOR, "div.zebra-row > div.drawer-modal-wrapper > div.property")
+            spec_value = row.find_element(By.CSS_SELECTOR, "div.zebra-row > div.description")
 
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.overflow-scroll-wrapper")))
+            print(spec_title.text.strip(), " ", spec_value.text)
 
+        # back to original page
+        driver.get(o_url)
 
-        # Go back to the previous page
-        driver.execute_script("window.history.go(-1)")
-
-        # Wait for the product list to load on the previous page
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "ol.sku-item-list li.sku-item")))
-
-
-
-
-
-
-
-
-
-
-
-#        title_text = title_text.replace('-', '')
-#        title = title_text.split()
-#        sku = product.get_attribute("data-sku-id")
-#        laptop_brand = title[0]
-#        if laptop_brand == 'Macbook':
-#            laptop_brand = 'Apple'
-#        print(title)
-#        print(sku)
-
-# Close the browser
+# exit
 driver.quit()
+
+# shop-sku-list-item-49988458 > div.shop-sku-list-item > div.list-item.sv > div.product-header > h4.sku-title > a
